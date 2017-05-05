@@ -3,31 +3,30 @@ import matplotlib.pyplot as plt
 import os
 from scipy import ndimage
 
+def softmax(var):
+	exponent = np.exp(var)
+	return exponent/sum(exponent)
+
 class Conv():
 
-	def __init__(self,stride=1,pad=1,F=3,depth=3,N=6):
+	def __init__(self,stride=1,pad=1,F=3,depth=3,N=6,fanin=1):
 		self.stride = stride
 		self.pad = pad
 		self.F = F
 		self.depth = depth
 		self.N = np
 		self.filters = []
-
-	def init_filters(self,fanin):
-
-		#filters = []
+		self.fanin = fanin
+		self.bias = 0.01 * np.random.randn(1)
 		for i in range(self.N):
-			fil = np.random.randn((self.F,self.F,self.depth),dtype = 'float')/np.sqrt(fanin/2.0)
+			fil = np.random.randn((self.F,self.F,self.depth))/np.sqrt(self.fanin/2.0)
 			self.filters.append(fil)
-
-		return
 		
-
 	def forward(self,input_prev):
 
 		self.out = []
 		for i in range(self.N):
-			self.out.append(ndimage.convolve(input_prev,self.filters[i],mode = 'constant',cval = 0.0))
+			self.out.append(ndimage.convolve(input_prev,self.filters[i],mode = 'constant',cval = 0.0) + self.bias)
 
 		return self.out
 
@@ -35,7 +34,7 @@ class Conv():
 
 		self.error_derivatives = []
 		for i in range(self.N):
-			error_derivatives = #Need to figure it out
+			self.error_derivatives = #Need to figure it out
 
 
 class ReLU():
@@ -58,7 +57,7 @@ class Pool(object):
 	def max_pooling(self,input_to_layer):
 		m,n,p = input_to_layer.shape
 
-		out = np.zeros(((m-self.F)/self.stride,(n-self.F)/self.stride,p),dtype = np.uint8)
+		out = np.zeros(((m-self.F)/self.stride,(n-self.F)/self.stride,p))
 		
 		for k in range(p):	
 			for i in range(0,m,self.stride):
@@ -68,7 +67,37 @@ class Pool(object):
 
 		return out
 		
+class FC(object):
 
+	def __init__(self,H,fanin):
+		self.H = H
+		self.fanin = fanin
+		self.weights = np.random.randn((self.H,self.fanin))/np.sqrt(self.fanin)
+		self.bias = 0.01 * np.random.randn(1)
+		return
+
+	def forward(self,input_to_layer):
+		self.out = self.weights * input_to_layer#softmax(input_to_layer * self.weights + self.bias)
+		return self.out
+
+	def backward(self,error_derivatives_above):
+		pass
+
+class Softmax(object):
+
+	def __init__(self,H,fanin):
+		self.H = H
+		self.fanin = fanin
+		self.weights = np.random.randn((self.H,self.fanin))/np.sqrt(self.fanin)
+		self.bias = 0.01 * np.random.randn(1)
+		return
+
+	def forward(self,input_to_layer):
+		self.out = softmax(input_to_layer * self.weights + self.bias)
+		return self.out
+
+	def backward(self,error_derivatives_above):
+		pass
 
 
 if __name__ == '__main__':
