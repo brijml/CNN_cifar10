@@ -22,30 +22,37 @@ class Conv():
 			fil = np.random.randn((self.F,self.F,self.depth))/np.sqrt(self.fanin/2.0)
 			self.filters.append(fil)
 		
-	def forward(self,input_prev):
+	def forward(self,activations_below):
 
-		self.out = []
+		self.out = np.zeros(())
 		for i in range(self.N):
-			self.out.append(ndimage.convolve(input_prev,self.filters[i],mode = 'constant',cval = 0.0) + self.bias)
+			self.out.append(ndimage.convolve(activations_below,self.filters[i],mode = 'constant',cval = 0.0) + self.bias)
 
-		return self.out
+		return np.array(self.out)
 
 	def backward(self,error_derivatives_above):
 
 		self.error_derivatives = []
 		for i in range(self.N):
-			self.error_derivatives = #Need to figure it out
-
+			error_derivatives_y += ndimage.convolve(error_derivatives_above,self.filters[i],mode = 'constant',cval = 0.0)
+			self.error_derivatives_w[i] = activations_below * error_derivatives_above
+		return error_derivatives_y
 
 class ReLU():
 
 	def __init__(self):
 		pass
 
-	def rectify(self,input_to_layer):
-		input_to_layer[input_to_layer < 0] = 0
+	def rectify(self,activations_below):
+		mask = activations_below < 0
+		activations_below[mask] = 0
+		self.out = activations_below
+		self.local_grad = np.array(mask,dtype = np.uint8)
+		return self.out
 
-		return input_to_layer
+	def backward(self,error_derivatives_above):
+		error_derivatives_y = error_derivatives_above * self.local_grad
+		return error_derivatives_y
 
 class Pool(object):
 	"""docstring for Pool"""
@@ -54,18 +61,24 @@ class Pool(object):
 		self.stride = stride
 		self.F = F
 
-	def max_pooling(self,input_to_layer):
-		m,n,p = input_to_layer.shape
+	def max_pooling(self,activations_below):
+		m,n,p = activations_below.shape
 
 		out = np.zeros(((m-self.F)/self.stride,(n-self.F)/self.stride,p))
+		self.local_grad = np.zeros((m,n,p))
 		
 		for k in range(p):	
 			for i in range(0,m,self.stride):
 				for j in range(0,n,self.stride):
-					t = input_to_layer[i:i+self.F,j:j+self.F,p].reshape(self.F*self.F)
+					t = activations_below[i:i+self.F,j:j+self.F,p].reshape(self.F*self.F)
 					out[i,j,p] = max(t)
+					self.local_grad[i:i+self.F,j:j+self.F,p] = np.array(t == max(t),dtype = np.uint8)
 
 		return out
+
+	def backward(self,error_derivatives_above):
+		error_derivatives_y = error_derivatives_above * self.local_grad
+		return error_derivatives_y
 		
 class FC(object):
 
@@ -76,12 +89,15 @@ class FC(object):
 		self.bias = 0.01 * np.random.randn(1)
 		return
 
-	def forward(self,input_to_layer):
-		self.out = self.weights * input_to_layer#softmax(input_to_layer * self.weights + self.bias)
+	def forward(self,activations_below):
+		self.out = self.weights * activations_below#softmax(activations_below * self.weights + self.bias)
+		self.local_grad = self.weights
 		return self.out
 
 	def backward(self,error_derivatives_above):
-		pass
+		error_derivatives_y = error_derivatives_above * self.local_grad
+		self.error_derivatives_w = error_derivatives_above * self.out
+		return error_derivatives_y
 
 class Softmax(object):
 
@@ -92,13 +108,15 @@ class Softmax(object):
 		self.bias = 0.01 * np.random.randn(1)
 		return
 
-	def forward(self,input_to_layer):
-		self.out = softmax(input_to_layer * self.weights + self.bias)
+	def forward(self,activations_below):
+		self.out = softmax(activations_below * self.weights + self.bias)
+		self.local_grad = 
 		return self.out
 
-	def backward(self,error_derivatives_above):
-		pass
-
+	def backward(self,loss):
+		error_derivatives_y = loss - self.out
+		self.error_derivatives_w = 
+		return error_derivatives_y
 
 if __name__ == '__main__':
 	pass
