@@ -36,6 +36,7 @@ class Conv():
 		for i in range(self.N):
 			error_derivatives_y += ndimage.convolve(error_derivatives_above,self.filters[i],mode = 'constant',cval = 0.0)
 			self.error_derivatives_w[i] = activations_below * error_derivatives_above
+		self.error_derivatives_bias = error_derivatives_above
 		return error_derivatives_y
 
 class ReLU():
@@ -90,13 +91,14 @@ class FC(object):
 		return
 
 	def forward(self,activations_below):
-		self.out = self.weights * activations_below#softmax(activations_below * self.weights + self.bias)
+		self.out = self.weights * activations_below + self.bias#softmax(activations_below * self.weights + self.bias)
 		self.local_grad = self.weights
-		return self.out
+		return
 
 	def backward(self,error_derivatives_above):
 		error_derivatives_y = error_derivatives_above * self.local_grad
 		self.error_derivatives_w = error_derivatives_above * self.out
+		self.error_derivatives_bias = error_derivatives_above
 		return error_derivatives_y
 
 class Softmax(object):
@@ -110,12 +112,18 @@ class Softmax(object):
 
 	def forward(self,activations_below):
 		self.out = softmax(activations_below * self.weights + self.bias)
-		self.local_grad = 
-		return self.out
+		
+		self.local_grad = np.zeros(len(activations_below))
+		for i,value in enumerate(activations_below):
+			self.local_grad[i] = self.out[i] * (1 - self.out[i])
+			for j in range(len(self.out)):
+				self.local_grad[j] += -1 * self.out[i] * self.out[j]
 
-	def backward(self,loss):
-		error_derivatives_y = loss - self.out
-		self.error_derivatives_w = 
+		return
+
+	def backward(self,target):
+		error_derivatives_y = target - self.out
+		self.error_derivatives_w = activations_below * self.local_grad
 		return error_derivatives_y
 
 if __name__ == '__main__':
