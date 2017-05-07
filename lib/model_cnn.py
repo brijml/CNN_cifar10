@@ -39,6 +39,10 @@ class Conv():
 		self.error_derivatives_bias = error_derivatives_above
 		return error_derivatives_y
 
+	def update(self,learning_rate,momentum):
+		for i in range(self.N):
+			self.filters -= learning_rate * self.error_derivatives_w[i]
+
 class ReLU():
 
 	def __init__(self):
@@ -101,17 +105,22 @@ class FC(object):
 		self.error_derivatives_bias = error_derivatives_above
 		return error_derivatives_y
 
+	def update(self,learning_rate,momentum):
+		self.weights -= learning_rate * self.error_derivatives_w
+		self.bias -= learning_rate * self.error_derivatives_bias
+		return
+
 class Softmax(object):
 
 	def __init__(self,H,fanin):
 		self.H = H
 		self.fanin = fanin
 		self.weights = np.random.randn((self.H,self.fanin))/np.sqrt(self.fanin)
-		self.bias = 0.01 * np.random.randn(1)
+		# self.bias = 0.01 * np.random.randn(1)
 		return
 
 	def forward(self,activations_below):
-		self.out = softmax(activations_below * self.weights + self.bias)
+		self.out = softmax(activations_below * self.weights)# + self.bias)
 		
 		self.local_grad = np.zeros(len(activations_below))
 		for i,value in enumerate(activations_below):
@@ -125,6 +134,11 @@ class Softmax(object):
 		error_derivatives_y = target - self.out
 		self.error_derivatives_w = activations_below * self.local_grad
 		return error_derivatives_y
+
+	def update(self,learning_rate,momentum):
+		self.weights -= learning_rate * self.error_derivatives_w
+		return
+
 
 if __name__ == '__main__':
 	pass
