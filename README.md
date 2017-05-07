@@ -9,6 +9,6 @@ Image classification on cifar10 dataset with a convolutional neural network.
 		
 		$source activate <env-name>
 
-3.	Run the scipt word2vec.py to find the word representations
+3.	Run the scipt architecture.py to find the word representations
 	
 		$python architecture.py
