@@ -73,13 +73,13 @@ class Pool(object):
 		self.F = F
 
 	def max_pooling(self,activations_below):
-		m,n,p = activations_below.shape
-		out = np.zeros(((m-self.F)/self.stride+1,(n-self.F)/self.stride+1,p))
-		self.local_grad = np.zeros((m,n,p))
+		self.m,self.n,self.p = activations_below.shape
+		out = np.zeros(((self.m-self.F)/self.stride+1,(self.n-self.F)/self.stride+1,self.p))
+		self.local_grad = np.zeros((self.m,self.n,self.p))
 
-		for k in range(p):	
-			for i in range(0,m,self.stride):
-				for j in range(0,n,self.stride):
+		for k in range(self.p):	
+			for i in range(0,self.m,self.stride):
+				for j in range(0,self.n,self.stride):
 					t = activations_below[i:i+self.F,j:j+self.F,k].reshape(self.F*self.F)
 					out[(i-self.F)/self.stride+1,(j-self.F)/self.stride+1,k] = max(t)
 					self.local_grad[i:i+self.F,j:j+self.F,k] = np.array(t == max(t),dtype = np.uint8).reshape(self.F,self.F)
@@ -87,7 +87,14 @@ class Pool(object):
 		return out
 
 	def backward(self,error_derivatives_above):
-		error_derivatives_y = error_derivatives_above * self.local_grad
+
+		error_derivatives_y = np.zeros((self.m,self.n,self.p))		
+		for k in range(self.p):	
+			for i in range(0,self.m,self.stride):
+				for j in range(0,self.n,self.stride):
+					t1 = self.local_grad[i:i+self.F,j:j+self.F,k].reshape(self.F*self.F)\
+					 * error_derivatives_above[(i-self.F)/self.stride+1,(j-self.F)/self.stride+1,k]
+					error_derivatives_y[i:i+self.F,j:j+self.F,k] = t1.reshape(self.F,self.F)
 		return error_derivatives_y
 		
 class FC(object):
@@ -139,7 +146,7 @@ class Softmax(object):
 		return self.out	
 
 	def backward(self,target):
-		error_derivatives_y = target - self.out
+		error_derivatives_y = np.atleast_2d(target).T - self.out
 		self.error_derivatives_w = self.input_to_softmax * self.local_grad
 		return error_derivatives_y
 
