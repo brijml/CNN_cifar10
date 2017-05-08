@@ -21,13 +21,13 @@ def train(**kwargs):
 	number_samples = X_train.shape[0]
 	number_samples_batch = number_samples/batch
 
-	conv1 = Conv(F=5,stride=1,pad=2,depth=3,N=16,fanin=m*n)
+	conv1 = Conv(F=5,stride=1,pad=2,depth=3,N=16,fanin=m*n*p)
 	relu1 = ReLU()
 	pool1 = Pool(stride=2,F=2)
-	conv2 = Conv(F=5,stride=1,pad=2,depth=16,N=20,fanin=m*n)
+	conv2 = Conv(F=5,stride=1,pad=2,depth=16,N=20,fanin=m/2*n/2*16)
 	relu2 = ReLU()
 	pool2 = Pool(stride=2,F=2)
-	conv3 = Conv(F=5,stride=1,pad=2,depth=20,N=20,fanin=m*n)
+	conv3 = Conv(F=5,stride=1,pad=2,depth=20,N=20,fanin=m/2*n/4*20)
 	relu3 = ReLU()
 	pool3 = Pool(stride=2,F=2)
 	full = FC(H =10,fanin = 320)
