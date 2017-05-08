@@ -14,21 +14,24 @@ class Conv():
 		self.pad = pad
 		self.F = F
 		self.depth = depth
-		self.N = np
+		self.N = N
 		self.filters = []
 		self.fanin = fanin
 		self.bias = 0.01 * np.random.randn(1)
 		for i in range(self.N):
-			fil = np.random.randn((self.F,self.F,self.depth))/np.sqrt(self.fanin/2.0)
+			fil = np.random.randn(self.F,self.F,self.depth)/np.sqrt(self.fanin/2.0)
 			self.filters.append(fil)
 		
 	def forward(self,activations_below):
 
-		self.out = np.zeros(())
+		m,n = activations_below.shape[:2]
+		self.out = np.zeros((m,n,self.N))
 		for i in range(self.N):
-			self.out.append(ndimage.convolve(activations_below,self.filters[i],mode = 'constant',cval = 0.0) + self.bias)
+			a = ndimage.convolve(activations_below,self.filters[i],mode = 'constant',cval = 0.0) + self.bias
+			for j in range(a.shape[2]):
+				self.out[:,:,i] += a[:,:,j]
 
-		return np.array(self.out)
+		return self.out
 
 	def backward(self,error_derivatives_above):
 
@@ -68,16 +71,21 @@ class Pool(object):
 
 	def max_pooling(self,activations_below):
 		m,n,p = activations_below.shape
-
-		out = np.zeros(((m-self.F)/self.stride,(n-self.F)/self.stride,p))
+		# print m,n,p
+		out = np.zeros(((m-self.F)/self.stride+1,(n-self.F)/self.stride+1,p))
+		# print out.shape
 		self.local_grad = np.zeros((m,n,p))
-		
-		for k in range(p):	
+		# print activations_below[0:0+self.F,0:0+self.F,0].shape
+
+		for k in range(p):
+			# print k	
 			for i in range(0,m,self.stride):
 				for j in range(0,n,self.stride):
-					t = activations_below[i:i+self.F,j:j+self.F,p].reshape(self.F*self.F)
-					out[i,j,p] = max(t)
-					self.local_grad[i:i+self.F,j:j+self.F,p] = np.array(t == max(t),dtype = np.uint8)
+					# print i,j
+					# print activations_below[i:i+self.F,j:j+self.F,k].shape
+					t = activations_below[i:i+self.F,j:j+self.F,k].reshape(self.F*self.F)
+					out[(i-self.F)/self.stride+1,(j-self.F)/self.stride+1,k] = max(t)
+					self.local_grad[i:i+self.F,j:j+self.F,k] = np.array(t == max(t),dtype = np.uint8).reshape(self.F,self.F)
 
 		return out
 
@@ -90,14 +98,15 @@ class FC(object):
 	def __init__(self,H,fanin):
 		self.H = H
 		self.fanin = fanin
-		self.weights = np.random.randn((self.H,self.fanin))/np.sqrt(self.fanin)
+		self.weights = np.random.randn(self.H,self.fanin)/np.sqrt(self.fanin)
 		self.bias = 0.01 * np.random.randn(1)
 		return
 
 	def forward(self,activations_below):
-		self.out = self.weights * activations_below + self.bias#softmax(activations_below * self.weights + self.bias)
+		print activations_below.shape,self.weights.shape,self.bias.shape
+		self.out = np.matmul(self.weights,activations_below) + self.bias#softmax(activations_below * self.weights + self.bias)
 		self.local_grad = self.weights
-		return
+		return self.out
 
 	def backward(self,error_derivatives_above):
 		error_derivatives_y = error_derivatives_above * self.local_grad
@@ -115,20 +124,21 @@ class Softmax(object):
 	def __init__(self,H,fanin):
 		self.H = H
 		self.fanin = fanin
-		self.weights = np.random.randn((self.H,self.fanin))/np.sqrt(self.fanin)
+		self.weights = np.random.randn(self.H,self.fanin)/np.sqrt(self.fanin)
 		# self.bias = 0.01 * np.random.randn(1)
 		return
 
 	def forward(self,activations_below):
-		self.out = softmax(activations_below * self.weights)# + self.bias)
-		
-		self.local_grad = np.zeros(len(activations_below))
-		for i,value in enumerate(activations_below):
+
+		self.out = softmax(np.matmul(self.weights,activations_below))# + self.bias)
+		print self.out.shape
+		self.local_grad = np.zeros(len(self.out))
+		for i,value in enumerate(self.out):
 			self.local_grad[i] = self.out[i] * (1 - self.out[i])
 			for j in range(len(self.out)):
 				self.local_grad[j] += -1 * self.out[i] * self.out[j]
 
-		return
+		return self.out	
 
 	def backward(self,target):
 		error_derivatives_y = target - self.out
