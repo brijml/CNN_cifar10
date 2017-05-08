@@ -4,7 +4,9 @@ import os
 from scipy import ndimage
 
 def softmax(var):
+	#print var
 	exponent = np.exp(var)
+	#print exponent
 	return exponent/sum(exponent)
 
 class Conv():
@@ -26,11 +28,14 @@ class Conv():
 
 		m,n = activations_below.shape[:2]
 		self.out = np.zeros((m,n,self.N))
+		a = np.zeros((m,n,self.depth))
 		for i in range(self.N):
-			a = ndimage.convolve(activations_below,self.filters[i],mode = 'constant',cval = 0.0) + self.bias
-			for j in range(a.shape[2]):
-				self.out[:,:,i] += a[:,:,j]
-
+			# convolve(activations_below,self.filters[i])
+			for j in range(self.depth):
+				a[:,:,j] = ndimage.convolve(activations_below[:,:,j],self.filters[i][:,:,j],mode = 'constant',cval = 0.0) + self.bias
+			for k in range(a.shape[2]):
+				self.out[:,:,i] += a[:,:,k]
+		#print self.out
 		return self.out
 
 	def backward(self,error_derivatives_above):
@@ -71,18 +76,18 @@ class Pool(object):
 
 	def max_pooling(self,activations_below):
 		m,n,p = activations_below.shape
-		# print m,n,p
+		# #print m,n,p
 		out = np.zeros(((m-self.F)/self.stride+1,(n-self.F)/self.stride+1,p))
-		# print out.shape
+		# #print out.shape
 		self.local_grad = np.zeros((m,n,p))
-		# print activations_below[0:0+self.F,0:0+self.F,0].shape
+		# #print activations_below[0:0+self.F,0:0+self.F,0].shape
 
 		for k in range(p):
-			# print k	
+			# #print k	
 			for i in range(0,m,self.stride):
 				for j in range(0,n,self.stride):
-					# print i,j
-					# print activations_below[i:i+self.F,j:j+self.F,k].shape
+					# #print i,j
+					# #print activations_below[i:i+self.F,j:j+self.F,k].shape
 					t = activations_below[i:i+self.F,j:j+self.F,k].reshape(self.F*self.F)
 					out[(i-self.F)/self.stride+1,(j-self.F)/self.stride+1,k] = max(t)
 					self.local_grad[i:i+self.F,j:j+self.F,k] = np.array(t == max(t),dtype = np.uint8).reshape(self.F,self.F)
@@ -103,9 +108,10 @@ class FC(object):
 		return
 
 	def forward(self,activations_below):
-		print activations_below.shape,self.weights.shape,self.bias.shape
+		# #print activations_below.shape,self.weights.shape,self.bias.shape
 		self.out = np.matmul(self.weights,activations_below) + self.bias#softmax(activations_below * self.weights + self.bias)
 		self.local_grad = self.weights
+		#print self.out
 		return self.out
 
 	def backward(self,error_derivatives_above):
@@ -125,29 +131,34 @@ class Softmax(object):
 		self.H = H
 		self.fanin = fanin
 		self.weights = np.random.randn(self.H,self.fanin)/np.sqrt(self.fanin)
+		# #print self.weights
 		# self.bias = 0.01 * np.random.randn(1)
 		return
 
-	def forward(self,activations_below):
+	def forward(self,activations_below,weight_decay):
 
-		self.out = softmax(np.matmul(self.weights,activations_below))# + self.bias)
-		print self.out.shape
+		#print activations_below
+		self.out = softmax(np.matmul(self.weights,activations_below)) + weight_decay * np.atleast_2d(np.sum(self.weights,axis=1)).T
+		# #print self.out.shape
 		self.local_grad = np.zeros(len(self.out))
 		for i,value in enumerate(self.out):
 			self.local_grad[i] = self.out[i] * (1 - self.out[i])
 			for j in range(len(self.out)):
+				if i == j:
+					continue
 				self.local_grad[j] += -1 * self.out[i] * self.out[j]
 
+		self.input_to_softmax = activations_below
 		return self.out	
 
 	def backward(self,target):
 		error_derivatives_y = target - self.out
-		self.error_derivatives_w = activations_below * self.local_grad
+		self.error_derivatives_w = self.input_to_softmax * self.local_grad
 		return error_derivatives_y
 
 	def update(self,learning_rate,momentum):
 		self.weights -= learning_rate * self.error_derivatives_w
-		return
+		return	
 
 
 if __name__ == '__main__':
