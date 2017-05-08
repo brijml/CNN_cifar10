@@ -36,36 +36,24 @@ def train(**kwargs):
 	iters = 0
 	while iters < epoch:
 		for i,image in enumerate(X_train):
-			# print image.shape
 			out_conv1 = conv1.forward(image)
-			# print out_conv1
 			out_relu1 = relu1.rectify(out_conv1)
-			# print out_relu1
 			out_pool1 = pool1.max_pooling(out_relu1)
-			# print out_pool1
 			out_conv2 = conv2.forward(out_pool1)
-			# print out_conv2
 			out_relu2 = relu2.rectify(out_conv2)
-			# print out_relu2
 			out_pool2 = pool2.max_pooling(out_relu2)
-			# print out_pool2
 			out_conv3 = conv3.forward(out_pool2)
-			# print out_conv3
 			out_relu3 = relu3.rectify(out_conv3)
-			# print out_relu3.shape
 			out_pool3 = pool3.max_pooling(out_relu3)
-			# print out_pool3.shape
 			out_pool3 = out_pool3.reshape(320,1)
-			# print out_pool3
 			out_full = full.forward(out_pool3)
-			# print out_full
 			out_softmax = softmax.forward(out_full,wd)
-			# print np.sum(out_softmax),out_softmax
 			target = one_hot(Y_train[i])
 
 			grad_softmax = softmax.backward(target)
 			print grad_softmax.shape
 			grad_full = full.backward(grad_softmax)
+			print grad_full.shape
 			grad_pool3 = pool3.backward(grad_full)
 			grad_relu3 = relu3.backward(grad_pool3)
 			grad_conv3 = conv3.backward(grad_relu3)
