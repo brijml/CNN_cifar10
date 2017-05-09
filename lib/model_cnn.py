@@ -9,6 +9,13 @@ def softmax(var):
 	#print exponent
 	return exponent/sum(exponent)
 
+def zero_padding(input_array,pad=1):
+	m,n,p = input_array.shape
+	out_array = np.zeros((m+2*pad,n+2*pad,p))
+	for i in range(p):
+		out_array[pad:m+pad,pad:n+pad,i] = input_array[:,:,i]
+	return out_array
+
 class Conv():
 
 	def __init__(self,stride=1,pad=1,F=3,depth=3,N=6,fanin=1):
@@ -20,15 +27,17 @@ class Conv():
 		self.filters = []
 		self.fanin = fanin
 		self.bias = 0.01 * np.random.randn(1)
+		self.error_derivatives_w = []
 		for i in range(self.N):
 			fil = np.random.randn(self.F,self.F,self.depth)/np.sqrt(self.fanin/2.0)
 			self.filters.append(fil)
 		
 	def forward(self,activations_below):
 
-		m,n = activations_below.shape[:2]
-		self.out = np.zeros((m,n,self.N))
-		a = np.zeros((m,n,self.depth))
+		self.input_to_conv = activations_below
+		self.m,self.n = activations_below.shape[:2]
+		self.out = np.zeros((self.m,self.n,self.N))
+		a = np.zeros((self.m,self.n,self.depth))
 		for i in range(self.N):
 			for j in range(self.depth):
 				a[:,:,j] = ndimage.convolve(activations_below[:,:,j],self.filters[i][:,:,j],mode = 'constant',cval = 0.0) + self.bias
@@ -37,17 +46,43 @@ class Conv():
 		return self.out
 
 	def backward(self,error_derivatives_above):
-
-		self.error_derivatives = []
+		error_derivatives_y = np.zeros((self.m,self.n,self.N))
 		for i in range(self.N):
 			error_derivatives_y += ndimage.convolve(error_derivatives_above,self.filters[i],mode = 'constant',cval = 0.0)
-			self.error_derivatives_w[i] = activations_below * error_derivatives_above
-		self.error_derivatives_bias = error_derivatives_above
+
+		t = zero_padding(self.input_to_conv,pad = self.pad)
+		row, column = t.shape[:2]
+		# print 't_size',t.shape,error_derivatives_above.shape
+
+		# error_derivatives_above, t, 
+		print 'backprop'
+		for result_depth in range(self.N):
+			one_filter_derivative = np.zeros((self.F,self.F,self.depth))
+			
+			for x in range(self.m):
+				for y in range(self.n):
+					for u in range(self.F):
+						for v in range(self.F):
+
+							R_slice = t[u:row-(self.F-1-u), v:column-(self.F-1-v),0]
+							G_slice = t[u:row-(self.F-1-u), v:column-(self.F-1-v),1]
+							B_slice = t[u:row-(self.F-1-u), v:column-(self.F-1-v),2]
+
+							one_filter_derivative[u,v,0] = np.sum(R_slice) * error_derivatives_above[x,y,result_depth]
+							one_filter_derivative[u,v,1] = np.sum(G_slice) * error_derivatives_above[x,y,result_depth]
+							one_filter_derivative[u,v,2] = np.sum(B_slice) * error_derivatives_above[x,y,result_depth]
+
+
+			self.error_derivatives_w.append(one_filter_derivative)
+			# print len(self.error_derivatives_w)
+
 		return error_derivatives_y
 
+
 	def update(self,learning_rate,momentum):
+		print 'update', len(self.error_derivatives_w), len(self.filters)
 		for i in range(self.N):
-			self.filters -= learning_rate * self.error_derivatives_w[i]
+			self.filters[i] -= learning_rate * self.error_derivatives_w[i]
 
 class ReLU():
 
