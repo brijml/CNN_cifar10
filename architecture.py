@@ -62,17 +62,17 @@ def train(**kwargs):
 			print grad_relu3.shape
 			grad_conv3 = conv3.backward(grad_relu3)
 			print grad_conv3.shape
-			grad_pool2 = pool3.backward(grad_conv3)
+			grad_pool2 = pool2.backward(grad_conv3)
 			print grad_pool2.shape
-			grad_relu2 = relu3.backward(grad_pool2)
+			grad_relu2 = relu2.backward(grad_pool2)
 			print grad_relu2.shape
-			grad_conv2 = conv3.backward(grad_relu2)
+			grad_conv2 = conv2.backward(grad_relu2)
 			print grad_conv2.shape
-			grad_pool1 = pool3.backward(grad_conv2)
+			grad_pool1 = pool1.backward(grad_conv2)
 			print grad_pool1.shape
-			grad_relu1 = relu3.backward(grad_pool1)
+			grad_relu1 = relu1.backward(grad_pool1)
 			print grad_relu1.shape
-			grad_conv1 = conv3.backward(grad_relu1)
+			grad_conv1 = conv1.backward(grad_relu1)
 			print grad_conv1.shape
 
 			conv1.update(learning_rate,momentum)

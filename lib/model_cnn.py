@@ -26,7 +26,7 @@ class Conv():
 		self.N = N
 		self.filters = []
 		self.fanin = fanin
-		self.bias = 0.01 * np.random.randn(1)
+		# self.bias = 0.01 * np.random.randn(1)
 		self.error_derivatives_w = []
 		for i in range(self.N):
 			fil = np.random.randn(self.F,self.F,self.depth)/np.sqrt(self.fanin/2.0)
@@ -34,13 +34,13 @@ class Conv():
 		
 	def forward(self,activations_below):
 
-		self.input_to_conv = activations_below
+		# self.input_to_conv = activations_below
 		self.m,self.n = activations_below.shape[:2]
 		self.out = np.zeros((self.m,self.n,self.N))
 		a = np.zeros((self.m,self.n,self.depth))
 		for i in range(self.N):
 			for j in range(self.depth):
-				a[:,:,j] = ndimage.convolve(activations_below[:,:,j],self.filters[i][:,:,j],mode = 'constant',cval = 0.0) + self.bias
+				a[:,:,j] = ndimage.convolve(activations_below[:,:,j],self.filters[i][:,:,j],mode = 'constant',cval = 0.0) #+ self.bias
 			for k in range(a.shape[2]):
 				self.out[:,:,i] += a[:,:,k]
 		return self.out
@@ -50,7 +50,7 @@ class Conv():
 		for i in range(self.N):
 			error_derivatives_y += ndimage.convolve(error_derivatives_above,self.filters[i],mode = 'constant',cval = 0.0)
 
-		t = zero_padding(self.input_to_conv,pad = self.pad)
+		t = zero_padding(self.out,pad = self.pad)
 		row, column = t.shape[:2]
 		# print 't_size',t.shape,error_derivatives_above.shape
 
@@ -142,19 +142,19 @@ class FC(object):
 		return
 
 	def forward(self,activations_below):
-		self.out = np.matmul(self.weights.T,activations_below) + self.bias
+		self.out = np.matmul(self.weights.T,activations_below)# + self.bias
 		self.local_grad = self.weights
 		return self.out
 
 	def backward(self,error_derivatives_above):
 		error_derivatives_y = np.matmul(self.local_grad,error_derivatives_above)
 		self.error_derivatives_w = error_derivatives_above * self.out
-		self.error_derivatives_bias = error_derivatives_above
+		# self.error_derivatives_bias = error_derivatives_above
 		return error_derivatives_y
 
 	def update(self,learning_rate,momentum):
 		self.weights -= learning_rate * self.error_derivatives_w
-		self.bias -= learning_rate * self.error_derivatives_bias
+		# self.bias -= learning_rate * self.error_derivatives_bias
 		return
 
 class Softmax(object):
