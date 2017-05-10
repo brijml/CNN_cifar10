@@ -144,11 +144,13 @@ class FC(object):
 	def forward(self,activations_below):
 		self.out = np.matmul(self.weights.T,activations_below)# + self.bias
 		self.local_grad = self.weights
+		self.activations_MP = activations_below
 		return self.out
 
 	def backward(self,error_derivatives_above):
 		error_derivatives_y = np.matmul(self.local_grad,error_derivatives_above)
-		self.error_derivatives_w = error_derivatives_above * self.out
+		# print self.weights.shape,error_derivatives_above.shape,self.activations_MP.shape,'hi'
+		self.error_derivatives_w = np.matmul(self.activations_MP,error_derivatives_above.T)
 		# self.error_derivatives_bias = error_derivatives_above
 		return error_derivatives_y
 
@@ -162,28 +164,31 @@ class Softmax(object):
 	def __init__(self,H,fanin):
 		self.H = H
 		self.fanin = fanin
-		self.weights = np.random.randn(self.H,self.fanin)/np.sqrt(self.fanin)
+		self.weights = np.random.randn(self.fanin,self.H)/np.sqrt(self.fanin)
 		# self.bias = 0.01 * np.random.randn(1)
 		return
 
 	def forward(self,activations_below,weight_decay):
 
+		print activations_below
 		self.out = softmax(np.matmul(self.weights,activations_below)) + weight_decay * np.atleast_2d(np.sum(self.weights,axis=1)).T
-		self.local_grad = np.zeros(len(self.out))
-		for i,value in enumerate(self.out):
-			self.local_grad[i] = self.out[i] * (1 - self.out[i])
-			for j in range(len(self.out)):
-				if i == j:
-					continue
-				self.local_grad[j] += -1 * self.out[i] * self.out[j]
+		# self.local_grad = np.zeros(len(self.out))
+		# for i,value in enumerate(self.out):
+		# 	self.local_grad[i] = self.out[i] * (1 - self.out[i])
+		# 	for j in range(len(self.out)):
+		# 		if i == j:
+		# 			continue
+		# 		self.local_grad[j] += -1 * self.out[i] * self.out[j]
 
-		self.input_to_softmax = activations_below
+		self.activations_FC = activations_below
 		return self.out	
 
 	def backward(self,target):
-		error_derivatives_y = np.atleast_2d(target).T - self.out
-		self.error_derivatives_w = self.input_to_softmax * self.local_grad
-		return error_derivatives_y
+		error_derivatives_ISM = np.atleast_2d(target).T - self.out
+		self.error_derivatives_w = np.matmul(error_derivatives_ISM,self.activations_FC.T)
+		delta_FC = np.matmul(self.weights,error_derivatives_ISM)
+		# print delta_FC.shape,'hi',error_derivatives_ISM.shape,self.weights.shape
+		return delta_FC
 
 	def update(self,learning_rate,momentum):
 		self.weights -= learning_rate * self.error_derivatives_w
