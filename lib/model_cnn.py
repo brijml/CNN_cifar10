@@ -4,9 +4,7 @@ import os
 from scipy import ndimage
 
 def softmax(var):
-	#print var
 	exponent = np.exp(var)
-	#print exponent
 	return exponent/sum(exponent)
 
 def zero_padding(input_array,pad=1):
@@ -18,6 +16,18 @@ def zero_padding(input_array,pad=1):
 
 class Conv():
 
+	"""This is the convolutional layer of the net.
+
+	Attributes
+		attr1(int) : Defines the stride with which the filter progresses on input volume
+		attr2(int) : Defines the amount of padding is to be done to the length and width of the input volume.
+		attr3(int) : Size of the input filter generally a single number i.e. the filter is square in shape.
+		attr4(int) : Defines the depth of the filter generally equal to the depth of input volume.
+		attr5(int) : The number of filter for the layer.
+		attr6(int) : The number of input size received by the layer.
+	"""
+
+
 	def __init__(self,stride=1,pad=1,F=3,depth=3,N=6,fanin=1):
 		self.stride = stride
 		self.pad = pad
@@ -27,13 +37,23 @@ class Conv():
 		self.filters = []
 		self.fanin = fanin
 		# self.bias = 0.01 * np.random.randn(1)
-		self.error_derivatives_w = []
 		for i in range(self.N):
 			fil = np.random.randn(self.F,self.F,self.depth)/np.sqrt(self.fanin/2.0)
 			self.filters.append(fil)
 		
 	def forward(self,activations_below):
 
+		"""
+		The Forward progpogation for the convolutional layer. The output is the convolution of all the filters defined for the layer
+		If the size of the input volume is m*n*p, the size of filter is F*F*p, there are N such filters then the ouput size is m*n*N.
+
+		Args:
+		    param1: The input image for the first convolutional layer and the output of the max-pool layer for subsequent layer.
+
+		Returns:
+		    param2: The ouput volume after the convolution of the input with the filters.
+
+		"""
 		# self.input_to_conv = activations_below
 		self.m,self.n = activations_below.shape[:2]
 		self.out = np.zeros((self.m,self.n,self.N))
@@ -46,6 +66,12 @@ class Conv():
 		return self.out
 
 	def backward(self,error_derivatives_above):
+		
+		"""
+		The backpropogation for the layer performed similar to that of the input.
+		"""
+
+		self.error_derivatives_w = []
 		error_derivatives_y = np.zeros((self.m,self.n,self.N))
 		for i in range(self.N):
 			error_derivatives_y += ndimage.convolve(error_derivatives_above,self.filters[i],mode = 'constant',cval = 0.0)
@@ -63,7 +89,7 @@ class Conv():
 				for y in range(self.n):
 					for u in range(self.F):
 						for v in range(self.F):
-
+							
 							R_slice = t[u:row-(self.F-1-u), v:column-(self.F-1-v),0]
 							G_slice = t[u:row-(self.F-1-u), v:column-(self.F-1-v),1]
 							B_slice = t[u:row-(self.F-1-u), v:column-(self.F-1-v),2]
