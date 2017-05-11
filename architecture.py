@@ -45,6 +45,7 @@ def train(**kwargs):
 			# out_conv3 = conv3.forward(out_relu2)
 			# out_relu3 = relu3.rectify(out_conv3)
 			#out_pool3 = pool3.max_pooling(out_relu3)
+			# print out_pool1.shape
 			out_pool1 = out_pool1.reshape(4096,1)
 			out_full = full.forward(out_pool1)
 			out_softmax = softmax.forward(out_full,wd)

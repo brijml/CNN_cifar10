@@ -76,29 +76,30 @@ class Conv():
 		for i in range(self.N):
 			error_derivatives_y += ndimage.convolve(error_derivatives_above,self.filters[i],mode = 'constant',cval = 0.0)
 
-		t = zero_padding(self.input_to_conv,pad = self.pad)
+		t = zero_padding(self.out,pad = self.pad)
 		row, column = t.shape[:2]
 		# print 't_size',t.shape,error_derivatives_above.shape
 
 		# error_derivatives_above, t, 
 		print 'backprop'
-		for result_depth in range(self.N):
+		for result_depth in range(self.N): # depth of result 
 			one_filter_derivative = np.zeros((self.F,self.F,self.depth))
-			
-			for x in range(self.m):
-				for y in range(self.n):
-					for u in range(self.F):
-						for v in range(self.F):
-							
-							R_slice = t[u:row-(self.F-1-u), v:column-(self.F-1-v),0]
-							G_slice = t[u:row-(self.F-1-u), v:column-(self.F-1-v),1]
-							B_slice = t[u:row-(self.F-1-u), v:column-(self.F-1-v),2]
+			for x in range(self.m):  # Input image width
+				for y in range(self.n): #  Input image height
+					for u in range(self.F): # Filter width
+						for v in range(self.F): # Filter height
+							for d in range(self.depth):								
+								_slice = t[u:row-(self.F-1-u), v:column-(self.F-1-v),d]
+								print 'slice', _slice.shape
+								# G_slice = t[u:row-(self.F-1-u), v:column-(self.F-1-v),1]
+								# B_slice = t[u:row-(self.F-1-u), v:column-(self.F-1-v),2]
 
-							one_filter_derivative[u,v,0] = np.sum(R_slice) * error_derivatives_above[x,y,result_depth]
-							one_filter_derivative[u,v,1] = np.sum(G_slice) * error_derivatives_above[x,y,result_depth]
-							one_filter_derivative[u,v,2] = np.sum(B_slice) * error_derivatives_above[x,y,result_depth]
+								one_filter_derivative[u,v,d] = np.sum(_slice) * error_derivatives_above[x,y,result_depth]
+								# one_filter_derivative[u,v,1] = np.sum(G_slice) * error_derivatives_above[x,y,result_depth]
+								# one_filter_derivative[u,v,2] = np.sum(B_slice) * error_derivatives_above[x,y,result_depth]
 
-
+			print 'filter',result_depth, '\n',  one_filter_derivative
+			xxxxx = raw_input()
 			self.error_derivatives_w.append(one_filter_derivative)
 			# print len(self.error_derivatives_w)
 
@@ -108,6 +109,7 @@ class Conv():
 	def update(self,learning_rate,momentum):
 		print 'update', len(self.error_derivatives_w), len(self.filters)
 		for i in range(self.N):
+			print learning_rate , self.error_derivatives_w[i]
 			self.filters[i] -= learning_rate * self.error_derivatives_w[i]
 
 class ReLU():
@@ -149,11 +151,14 @@ class Pool(object):
 		for k in range(self.p):	
 			for i in range(0,self.m,self.stride):
 				for j in range(0,self.n,self.stride):
-					t = activations_below[i:i+self.F,j:j+self.F,k].reshape(self.F*self.F)
-					out[(i-self.F)/self.stride+1,(j-self.F)/self.stride+1,k] = max(t)
-					self.local_grad[i:i+self.F,j:j+self.F,k] = np.array(t == max(t),dtype = np.uint8).reshape(self.F,self.F)
-		# print out
-		# r = raw_input()
+					t = activations_below[i:i+self.F,j:j+self.F,k].reshape(self.F*self.F) #Reshaping 2*2 to 4
+					max_ = max(t)
+					if max_ != 0:
+						out[(i-self.F)/self.stride+1,(j-self.F)/self.stride+1,k] = max_
+						self.local_grad[i:i+self.F,j:j+self.F,k] = np.array(t == max(t),dtype = np.uint8).reshape(self.F,self.F)
+
+			# print activations_below[0:6,0:6,k],'\n\n',out[0:3,0:3,k],'\n\n',self.local_grad[0:6,0:6,k]
+			# r = raw_input()
 		return out
 
 	def backward(self,error_derivatives_above):
