@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import os
+import os,time
 from scipy import ndimage
 
 def softmax(var):
@@ -54,7 +54,7 @@ class Conv():
 		    param2: The ouput volume after the convolution of the input with the filters.
 
 		"""
-		# self.input_to_conv = activations_below
+		self.input_to_conv = activations_below
 		self.m,self.n = activations_below.shape[:2]
 		self.out = np.zeros((self.m,self.n,self.N))
 		a = np.zeros((self.m,self.n,self.depth))
@@ -76,7 +76,7 @@ class Conv():
 		for i in range(self.N):
 			error_derivatives_y += ndimage.convolve(error_derivatives_above,self.filters[i],mode = 'constant',cval = 0.0)
 
-		t = zero_padding(self.out,pad = self.pad)
+		t = zero_padding(self.input_to_conv,pad = self.pad)
 		row, column = t.shape[:2]
 		# print 't_size',t.shape,error_derivatives_above.shape
 
@@ -112,6 +112,7 @@ class Conv():
 
 class ReLU():
 
+	
 	def __init__(self):
 		pass
 
@@ -120,10 +121,17 @@ class ReLU():
 		activations_below[mask] = 0
 		self.out = activations_below
 		self.local_grad = np.array(mask,dtype = np.uint8)
+		# print self.local_grad
+		time.sleep(1)
 		return self.out
 
 	def backward(self,error_derivatives_above):
+		# print error_derivatives_above
+		# time.sleep(1)
 		error_derivatives_y = error_derivatives_above * self.local_grad
+		# print error_derivatives_y
+		# kkk = raw_input()
+		# del kkk
 		return error_derivatives_y
 
 class Pool(object):
@@ -144,7 +152,8 @@ class Pool(object):
 					t = activations_below[i:i+self.F,j:j+self.F,k].reshape(self.F*self.F)
 					out[(i-self.F)/self.stride+1,(j-self.F)/self.stride+1,k] = max(t)
 					self.local_grad[i:i+self.F,j:j+self.F,k] = np.array(t == max(t),dtype = np.uint8).reshape(self.F,self.F)
-
+		# print out
+		# r = raw_input()
 		return out
 
 	def backward(self,error_derivatives_above):
@@ -156,6 +165,10 @@ class Pool(object):
 					t1 = self.local_grad[i:i+self.F,j:j+self.F,k].reshape(self.F*self.F)\
 					 * error_derivatives_above[(i-self.F)/self.stride+1,(j-self.F)/self.stride+1,k]
 					error_derivatives_y[i:i+self.F,j:j+self.F,k] = t1.reshape(self.F,self.F)
+		# print 'error_derivatives_y\n',error_derivatives_y
+		# kkk = raw_input()
+		# print 'error_derivatives_above\n',error_derivatives_above
+		# kkk = raw_input()
 		return error_derivatives_y
 		
 class FC(object):
@@ -175,7 +188,8 @@ class FC(object):
 
 	def backward(self,error_derivatives_above):
 		error_derivatives_y = np.matmul(self.local_grad,error_derivatives_above)
-		# print self.weights.shape,error_derivatives_above.shape,self.activations_MP.shape,'hi'
+		# print self.activations_MP
+		# r = raw_input()
 		self.error_derivatives_w = np.matmul(self.activations_MP,error_derivatives_above.T)
 		# self.error_derivatives_bias = error_derivatives_above
 		return error_derivatives_y
@@ -196,7 +210,7 @@ class Softmax(object):
 
 	def forward(self,activations_below,weight_decay):
 
-		print activations_below
+		# print activations_below
 		self.out = softmax(np.matmul(self.weights,activations_below)) + weight_decay * np.atleast_2d(np.sum(self.weights,axis=1)).T
 		# self.local_grad = np.zeros(len(self.out))
 		# for i,value in enumerate(self.out):
