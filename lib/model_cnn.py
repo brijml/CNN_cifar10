@@ -211,7 +211,7 @@ class Softmax(object):
 	def forward(self,activations_below,weight_decay):
 
 		# print activations_below
-		self.out = softmax(np.matmul(self.weights,activations_below)) + weight_decay * np.atleast_2d(np.sum(self.weights,axis=1)).T
+		self.out = softmax(np.matmul(self.weights.T,activations_below)) #+ weight_decay * np.atleast_2d(np.sum(self.weights,axis=1)).T
 		# self.local_grad = np.zeros(len(self.out))
 		# for i,value in enumerate(self.out):
 		# 	self.local_grad[i] = self.out[i] * (1 - self.out[i])
@@ -225,9 +225,10 @@ class Softmax(object):
 
 	def backward(self,target):
 		error_derivatives_ISM = np.atleast_2d(target).T - self.out
-		self.error_derivatives_w = np.matmul(error_derivatives_ISM,self.activations_FC.T)
+		self.error_derivatives_w = np.matmul(self.activations_FC,error_derivatives_ISM.T)
 		delta_FC = np.matmul(self.weights,error_derivatives_ISM)
 		# print delta_FC.shape,'hi',error_derivatives_ISM.shape,self.weights.shape
+		print delta_FC.shape
 		return delta_FC
 
 	def update(self,learning_rate,momentum):
