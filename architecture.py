@@ -30,7 +30,7 @@ def train(**kwargs):
 	conv3 = Conv(F=5,stride=1,pad=2,depth=20,N=20,fanin=m*n*20)
 	relu3 = ReLU()
 	pool3 = Pool(stride=2,F=2)
-	full = FC(H =10,fanin = 4096)
+	full = FC(H =10,fanin = 320)
 	softmax = Softmax(H=10,fanin = 10)
 
 	iters = 0
@@ -39,37 +39,37 @@ def train(**kwargs):
 			out_conv1 = conv1.forward(image)
 			out_relu1 = relu1.rectify(out_conv1)
 			out_pool1 = pool1.max_pooling(out_relu1)
-			# out_conv2 = conv2.forward(out_relu1)
-			# out_relu2 = relu2.rectify(out_conv2)
-			# #out_pool2 = pool2.max_pooling(out_relu2)
-			# out_conv3 = conv3.forward(out_relu2)
-			# out_relu3 = relu3.rectify(out_conv3)
-			#out_pool3 = pool3.max_pooling(out_relu3)
+			out_conv2 = conv2.forward(out_pool1)
+			out_relu2 = relu2.rectify(out_conv2)
+			out_pool2 = pool2.max_pooling(out_relu2)
+			out_conv3 = conv3.forward(out_pool2)
+			out_relu3 = relu3.rectify(out_conv3)
+			out_pool3 = pool3.max_pooling(out_relu3)
 			# print out_pool1.shape
-			out_pool1 = out_pool1.reshape(4096,1)
-			out_full = full.forward(out_pool1)
+			out_pool3 = out_pool3.reshape(320,1)
+			out_full = full.forward(out_pool3)
 			out_softmax = softmax.forward(out_full,wd)
 			target = one_hot(Y_train[i])
-			print out_softmax
+			print out_softmax#.shape,np.atleast_2d(target).T.shape
 
 			grad_softmax = softmax.backward(target)
 			# print grad_softmax.shape
 			grad_full = full.backward(grad_softmax)
-			grad_full = grad_full.reshape(16,16,16)
+			grad_full = grad_full.reshape(4,4,20)
 			# print grad_full.shape
-			# grad_pool3 = pool3.backward(grad_full)
+			grad_pool3 = pool3.backward(grad_full)
 			# print grad_pool3.shape
-			# grad_relu3 = relu3.backward(grad_full)
-			# # print grad_relu3.shape
-			# grad_conv3 = conv3.backward(grad_relu3)
-			# # print grad_conv3.shape
-			# # grad_pool2 = pool2.backward(grad_conv3)
-			# # print grad_pool2.shape
-			# grad_relu2 = relu2.backward(grad_conv3)
-			# # print grad_relu2.shape
-			# grad_conv2 = conv2.backward(grad_relu2)
+			grad_relu3 = relu3.backward(grad_pool3)
+			# print grad_relu3.shape
+			grad_conv3 = conv3.backward(grad_relu3)
+			# print grad_conv3.shape
+			grad_pool2 = pool2.backward(grad_conv3)
+			# print grad_pool2.shape
+			grad_relu2 = relu2.backward(grad_pool2)
+			# print grad_relu2.shape
+			grad_conv2 = conv2.backward(grad_relu2)
 			# print grad_conv2.shape
-			grad_pool1 = pool1.backward(grad_full)
+			grad_pool1 = pool1.backward(grad_conv2)
 			# print grad_pool1.shape
 			grad_relu1 = relu1.backward(grad_pool1)
 			# print grad_relu1.shape
@@ -77,13 +77,14 @@ def train(**kwargs):
 			# print grad_conv1.shape
 
 			conv1.update(learning_rate,momentum)
-			# conv2.update(learning_rate,momentum)
-			# conv3.update(learning_rate,momentum)
+			conv2.update(learning_rate,momentum)
+			conv3.update(learning_rate,momentum)
 			full.update(learning_rate,momentum)
 			softmax.update(learning_rate,momentum)
 
-			error = np.sum(target - out_softmax)
-		
+			# print np.atleast_2d(target).T - out_softmax
+			error = np.sum(abs(np.atleast_2d(target).T - out_softmax))
+			print error
 		iters+=1
 
 if __name__ == '__main__':

@@ -102,7 +102,7 @@ class Conv():
 		for i in range(self.N):
 			error_derivatives_y += ndimage.convolve(error_derivatives_above,self.filters[i],mode = 'constant',cval = 0.0)
 
-		t = zero_padding(self.out,pad = self.pad)
+		t = zero_padding(self.input_to_conv,pad = self.pad)
 		row, column = t.shape[:2]
 		# print 't_size',t.shape,error_derivatives_above.shape
 
@@ -133,9 +133,10 @@ class Conv():
 
 
 	def update(self,learning_rate,momentum):
-		print 'update', len(self.error_derivatives_w), len(self.filters)
+		# print 'update', len(self.error_derivatives_w), len(self.filters)
 		for i in range(self.N):
-			print learning_rate , self.error_derivatives_w[i]
+			# print learning_rate * self.error_derivatives_w[i]
+			# thaff = raw_input()
 			self.filters[i] -= learning_rate * self.error_derivatives_w[i]
 
 class ReLU():
@@ -145,15 +146,16 @@ class ReLU():
 		pass
 
 	def rectify(self,activations_below):
+		# print activations_below[0:5,0:5,0],'\n\n'
 		mask = activations_below < 0
 		mask1 = activations_below > 0
 		activations_below[mask] = 0
 		self.out = activations_below
 		self.local_grad = np.array(mask1,dtype = np.uint8)
-		for k in range(activations_below.shape[2]):
+		# for k in range(activations_below.shape[2]):
 
-			print activations_below[0:5,0:5,k],'\n\n',self.local_grad[0:5,0:5,k],'\n\n',self.out[0:5,0:5,k]
-			k = raw_input()	
+		# 	print self.local_grad[0:5,0:5,k],'\n\n',self.out[0:5,0:5,k]
+		# 	k = raw_input()	
 		# time.sleep(1)
 		return self.out
 
@@ -164,6 +166,10 @@ class ReLU():
 		# print error_derivatives_y
 		# kkk = raw_input()
 		# del kkk
+		# for k in range(self.local_grad.shape[2]):
+		# 	print self.local_grad[0:5,0:5,k],'\n\n',error_derivatives_above[0:5,0:5,k],'\n\n',error_derivatives_y[0:5,0:5,k]
+		# 	kkk = raw_input()	
+
 		return error_derivatives_y
 
 class Pool(object):
