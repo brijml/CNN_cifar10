@@ -14,6 +14,27 @@ def zero_padding(input_array,pad=1):
 		out_array[pad:m+pad,pad:n+pad,i] = input_array[:,:,i]
 	return out_array
 
+def convolve(image,filter_,pad):
+	# print 'hi'
+	out = np.zeros(image.shape[:2])
+	# print out.shape
+	# print filter_.shape
+	image = zero_padding(image,pad)
+	m_i,n_i,p_i = image.shape
+	m_f,n_f,p_f = filter_.shape
+
+	filter_ = np.rot90(np.rot90(filter_))
+	# print filter_.shape
+	for ch in range(p_i):
+		for i in range(m_i-m_f+1):
+			for j in range(n_i-n_f+1):
+			#for i_f in range(m_f/2,m_f/2+1):
+				#for j_f in range(n_f/2,n_f/2+1):
+				out[i,j] = np.sum(image[i:i+m_f,j:j+n_f,ch]*filter_[:,:,ch])
+				# print out[i,j]
+
+	return out
+
 class Conv():
 
 	"""This is the convolutional layer of the net.
@@ -41,6 +62,7 @@ class Conv():
 			fil = np.random.randn(self.F,self.F,self.depth)/np.sqrt(self.fanin/2.0)
 			self.filters.append(fil)
 		
+		# print len(self.filters)
 	def forward(self,activations_below):
 
 		"""
@@ -57,12 +79,16 @@ class Conv():
 		self.input_to_conv = activations_below
 		self.m,self.n = activations_below.shape[:2]
 		self.out = np.zeros((self.m,self.n,self.N))
-		a = np.zeros((self.m,self.n,self.depth))
+		print self.out.shape
+		# a = np.zeros((self.m,self.n,self.depth))
 		for i in range(self.N):
-			for j in range(self.depth):
-				a[:,:,j] = ndimage.convolve(activations_below[:,:,j],self.filters[i][:,:,j],mode = 'constant',cval = 0.0) #+ self.bias
-			for k in range(a.shape[2]):
-				self.out[:,:,i] += a[:,:,k]
+			self.out[:,:,i] = convolve(activations_below,self.filters[i],self.pad)
+		# 	for j in range(self.depth):
+		# 		a[:,:,j] = ndimage.convolve(activations_below[:,:,j],self.filters[i][:,:,j],mode = 'constant',cval = 0.0) #+ self.bias
+		# 	for k in range(a.shape[2]):
+		# 		self.out[:,:,i] += a[:,:,k]
+			# print self.out[0:5,0:5,i]
+			# tajfak = raw_input()
 		return self.out
 
 	def backward(self,error_derivatives_above):
@@ -90,7 +116,7 @@ class Conv():
 						for v in range(self.F): # Filter height
 							for d in range(self.depth):								
 								_slice = t[u:row-(self.F-1-u), v:column-(self.F-1-v),d]
-								print 'slice', _slice.shape
+								# print 'slice', _slice.shape
 								# G_slice = t[u:row-(self.F-1-u), v:column-(self.F-1-v),1]
 								# B_slice = t[u:row-(self.F-1-u), v:column-(self.F-1-v),2]
 
@@ -98,8 +124,8 @@ class Conv():
 								# one_filter_derivative[u,v,1] = np.sum(G_slice) * error_derivatives_above[x,y,result_depth]
 								# one_filter_derivative[u,v,2] = np.sum(B_slice) * error_derivatives_above[x,y,result_depth]
 
-			print 'filter',result_depth, '\n',  one_filter_derivative
-			xxxxx = raw_input()
+			# print 'filter',result_depth, '\n',  one_filter_derivative
+			# xxxxx = raw_input()
 			self.error_derivatives_w.append(one_filter_derivative)
 			# print len(self.error_derivatives_w)
 
@@ -120,11 +146,15 @@ class ReLU():
 
 	def rectify(self,activations_below):
 		mask = activations_below < 0
+		mask1 = activations_below > 0
 		activations_below[mask] = 0
 		self.out = activations_below
-		self.local_grad = np.array(mask,dtype = np.uint8)
-		# print self.local_grad
-		time.sleep(1)
+		self.local_grad = np.array(mask1,dtype = np.uint8)
+		for k in range(activations_below.shape[2]):
+
+			print activations_below[0:5,0:5,k],'\n\n',self.local_grad[0:5,0:5,k],'\n\n',self.out[0:5,0:5,k]
+			k = raw_input()	
+		# time.sleep(1)
 		return self.out
 
 	def backward(self,error_derivatives_above):
@@ -174,6 +204,8 @@ class Pool(object):
 		# kkk = raw_input()
 		# print 'error_derivatives_above\n',error_derivatives_above
 		# kkk = raw_input()
+			# print error_derivatives_above[0:3,0:3,k],'\n\n',error_derivatives_y[0:6,0:6,k],'\n\n',self.local_grad[0:6,0:6,k]
+			# r = raw_input()
 		return error_derivatives_y
 		
 class FC(object):
