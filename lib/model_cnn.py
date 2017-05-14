@@ -23,7 +23,7 @@ def convolve(image,filter_,pad):
 	m_i,n_i,p_i = image.shape
 	m_f,n_f,p_f = filter_.shape
 
-	filter_ = np.rot90(np.rot90(filter_))
+	filter_ = rot180(filter_)
 	# print filter_.shape
 	for ch in range(p_i):
 		for i in range(m_i-m_f+1):
@@ -34,6 +34,9 @@ def convolve(image,filter_,pad):
 				# print out[i,j]
 
 	return out
+
+def rot180(arr):
+	return np.rot90(np.rot90(arr))
 
 class Conv():
 
@@ -96,11 +99,13 @@ class Conv():
 		"""
 		The backpropogation for the layer performed similar to that of the input.
 		"""
-
+		error_derivatives_above =  rot180(error_derivatives_above)
+		self.input_to_conv = rot180(self.input_to_conv)
 		self.error_derivatives_w = []
 		error_derivatives_y = np.zeros((self.m,self.n,self.N))
 		for i in range(self.N):
-			error_derivatives_y += ndimage.convolve(error_derivatives_above,self.filters[i],mode = 'constant',cval = 0.0)
+			for j in range(self.depth):
+				error_derivatives_y[:,:,i] += ndimage.convolve(error_derivatives_above[:,:,i],self.filters[i][:,:,j],mode = 'constant',cval = 0.0)
 
 		t = zero_padding(self.input_to_conv,pad = self.pad)
 		row, column = t.shape[:2]
@@ -120,7 +125,7 @@ class Conv():
 								# G_slice = t[u:row-(self.F-1-u), v:column-(self.F-1-v),1]
 								# B_slice = t[u:row-(self.F-1-u), v:column-(self.F-1-v),2]
 
-								one_filter_derivative[u,v,d] = np.sum(_slice) * error_derivatives_above[x,y,result_depth]
+								one_filter_derivative[u,v,d] = np.sum(_slice) * error_derivatives_y[x,y,result_depth]
 								# one_filter_derivative[u,v,1] = np.sum(G_slice) * error_derivatives_above[x,y,result_depth]
 								# one_filter_derivative[u,v,2] = np.sum(B_slice) * error_derivatives_above[x,y,result_depth]
 
@@ -135,7 +140,7 @@ class Conv():
 	def update(self,learning_rate,momentum):
 		# print 'update', len(self.error_derivatives_w), len(self.filters)
 		for i in range(self.N):
-			# print learning_rate * self.error_derivatives_w[i]
+			# print learning_rate * self.error_derivatives_w[i][0:5,0:5,0]
 			# thaff = raw_input()
 			self.filters[i] -= learning_rate * self.error_derivatives_w[i]
 
@@ -267,11 +272,11 @@ class Softmax(object):
 		return self.out	
 
 	def backward(self,target):
-		error_derivatives_ISM = np.atleast_2d(target).T - self.out
+		error_derivatives_ISM = self.out - np.atleast_2d(target).T
 		self.error_derivatives_w = np.matmul(self.activations_FC,error_derivatives_ISM.T)
 		delta_FC = np.matmul(self.weights,error_derivatives_ISM)
 		# print delta_FC.shape,'hi',error_derivatives_ISM.shape,self.weights.shape
-		print delta_FC.shape
+		# print delta_FC.shape
 		return delta_FC
 
 	def update(self,learning_rate,momentum):
