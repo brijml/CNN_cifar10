@@ -1,6 +1,7 @@
 import numpy as np
 from lib import *
 import os
+import matplotlib.pyplot as plt
 
 data_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)),'cifar-10-batches-py')
 X_train,Y_train,X_test,Y_test = load_CIFAR10(data_dir)
@@ -21,19 +22,20 @@ def train(**kwargs):
 	number_samples = X_train.shape[0]
 	number_samples_batch = number_samples/batch
 
-	conv1 = Conv(F=5,stride=1,pad=2,depth=3,N=16,fanin=m*n*16)
+	conv1 = Conv(F=5,stride=1,pad=2,depth=3,N=4,fanin=m*n*4)
 	relu1 = ReLU()
 	pool1 = Pool(stride=2,F=2)
-	conv2 = Conv(F=5,stride=1,pad=2,depth=16,N=20,fanin=m*n*16)
+	conv2 = Conv(F=5,stride=1,pad=2,depth=4,N=6,fanin=m*n*6)
 	relu2 = ReLU()
 	pool2 = Pool(stride=2,F=2)
-	conv3 = Conv(F=5,stride=1,pad=2,depth=20,N=20,fanin=m*n*20)
+	conv3 = Conv(F=5,stride=1,pad=2,depth=6,N=8,fanin=m*n*8)
 	relu3 = ReLU()
 	pool3 = Pool(stride=2,F=2)
-	full = FC(H =50,fanin = 320)
+	full = FC(H =50,fanin = 128)
 	softmax = Softmax(H=10,fanin = 50)
-
+	plt.ion()
 	iters = 0
+	error = []
 	while iters < epoch:
 		for i,image in enumerate(X_train):
 			out_conv1 = conv1.forward(image)
@@ -46,19 +48,22 @@ def train(**kwargs):
 			out_relu3 = relu3.rectify(out_conv3)
 			out_pool3 = pool3.max_pooling(out_relu3)
 			# print out_pool1.shape
-			out_pool3 = out_pool3.reshape(320,1)
+			out_pool3 = out_pool3.reshape(128,1)
 			out_full = full.forward(out_pool3)
 			out_softmax = softmax.forward(out_full,wd)
 			target = one_hot(Y_train[i])
-			print out_softmax#.shape,np.atleast_2d(target).T.shape
-			error = np.sum(abs(np.atleast_2d(target).T - out_softmax))
-			print error
-
+			#.shape,np.atleast_2d(target).T.shape
+			error.append(np.sum(abs(np.atleast_2d(target).T - out_softmax)))
+			print out_softmax
+			# print error
+			plt.plot(error)
+			plt.pause(0.01)
 
 			grad_softmax = softmax.backward(target)
 			# print grad_softmax.shape
 			grad_full = full.backward(grad_softmax)
-			grad_full = grad_full.reshape(4,4,20)
+			# print grad_full.shape
+			grad_full = grad_full.reshape(4,4,8)
 			# print grad_full.shape
 			grad_pool3 = pool3.backward(grad_full)
 			# # print grad_pool3.shape
@@ -80,8 +85,8 @@ def train(**kwargs):
 			# print grad_conv1.shape
 
 			conv1.update(learning_rate,momentum)
-			# conv2.update(learning_rate,momentum)
-			# conv3.update(learning_rate,momentum)
+			conv2.update(learning_rate,momentum)
+			conv3.update(learning_rate,momentum)
 			full.update(learning_rate,momentum)
 			softmax.update(learning_rate,momentum)
 
@@ -90,4 +95,4 @@ def train(**kwargs):
 
 if __name__ == '__main__':
 	# model = init_model()
-	train(epoch = 1,learning_rate = 0.00001,momentum = 0.9,weight_decay = 0.001,batch=5)
+	train(epoch = 1,learning_rate = 0.001,momentum = 0.9,weight_decay = 0.001,batch=5)
