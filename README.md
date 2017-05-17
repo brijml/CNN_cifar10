@@ -9,6 +9,10 @@ Image classification on cifar10 dataset with a convolutional neural network.
 		
 		$source activate <env-name>
 
-3.	Run the scipt architecture.py to find the word representations
+3. 	Install the required package
+		
+		$conda install --file requirements.txt
+
+4.	Run the scipt architecture.py to train the convolutional neural netowrk.
 	
 		$python architecture.py
