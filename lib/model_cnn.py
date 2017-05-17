@@ -117,9 +117,9 @@ class Conv():
 		error_derivatives_y = np.zeros((self.m,self.n,self.depth))
 		for i in range(self.depth):
 			for j in range(self.N):
-				error_derivatives_y[:,:,i] += ndimage.convolve(error_derivatives_above[:,:,i],self.filters[j][:,:,i],mode = 'constant',cval = 0.0)
+				error_derivatives_y[:,:,i] += ndimage.convolve(error_derivatives_above[:,:,j],self.filters[j][:,:,i],mode = 'constant',cval = 0.0)
 
-		t = zero_padding(self.input_to_conv,pad = self.pad)
+		t = self.input_to_conv
 		row, column = t.shape[:2]
 		# print 't_size',t.shape,error_derivatives_above.shape
 
@@ -127,18 +127,20 @@ class Conv():
 		# print 'backprop',self.depth
 		for result_depth in range(self.N): # depth of result 
 			one_filter_derivative = np.zeros((self.F,self.F,self.depth))
-			for x in range(self.m):  # Input image width
-				for y in range(self.n): #  Input image height
-					for u in range(self.F): # Filter width
-						for v in range(self.F): # Filter height
-							for d in range(self.depth):
+			for d in range(self.depth):
+				for u in range(self.F): # Filter width
+					for v in range(self.F): # Filter height
+						for x in range(self.m - self.F):  # Input image width
+							for y in range(self.n - self.F): #  Input image height
+					
+								one_filter_derivative[u,v,d] += t[x+u,y+v,d]*error_derivatives_above[x,y,result_depth]						
 								# print d								
-								_slice = t[u:row-(self.F-1-u), v:column-(self.F-1-v),d]
-								# print 'slice', _slice.shape
-								# G_slice = t[u:row-(self.F-1-u), v:column-(self.F-1-v),1]
-								# B_slice = t[u:row-(self.F-1-u), v:column-(self.F-1-v),2]
+								# _slice = t[u:row-(self.F-1-u), v:column-(self.F-1-v),d]
+								# # print 'slice', _slice.shape
+								# # G_slice = t[u:row-(self.F-1-u), v:column-(self.F-1-v),1]
+								# # B_slice = t[u:row-(self.F-1-u), v:column-(self.F-1-v),2]
 
-								one_filter_derivative[u,v,d] = np.sum(_slice) * error_derivatives_above[x,y,result_depth]
+								# one_filter_derivative[u,v,d] = np.sum(_slice) * error_derivatives_above[x,y,result_depth]
 								# one_filter_derivative[u,v,1] = np.sum(G_slice) * error_derivatives_above[x,y,result_depth]
 								# one_filter_derivative[u,v,2] = np.sum(B_slice) * error_derivatives_above[x,y,result_depth]
 
