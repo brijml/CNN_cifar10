@@ -10,8 +10,7 @@ X_train,Y_train,X_test,Y_test = load_CIFAR10(data_dir)
 image = X_train[0]
 m,n,p = image.shape
 nc = 10 #number of classes
-X_train = X_train[0:100]
-# print X_train.shape
+# X_train = X_train[45:46] #Overfit on 50 training examples to validate the implementation
 
 def one_hot(index):
 	probability = np.zeros(nc)
@@ -51,10 +50,9 @@ def train(**kwargs):
 	softmax = Softmax(H=10,fanin = 50)
 	plt.ion()
 	iters = 0
-	error = []
-	v = 0
+	val = []
 	while iters < epoch:
-		#iters_i.pkl
+		error = []
 		for i,image in enumerate(X_train):
 			out_conv1 = conv1.forward(image)
 			out_relu1 = relu1.rectify(out_conv1)
@@ -65,43 +63,25 @@ def train(**kwargs):
 			out_conv3 = conv3.forward(out_pool2)
 			out_relu3 = relu3.rectify(out_conv3)
 			out_pool3 = pool3.max_pooling(out_relu3)
-			# print out_pool1.shape
 			out_pool3 = out_pool3.reshape(160,1)
 			out_full = full.forward(out_pool3)
 			out_softmax = softmax.forward(out_full,wd)
 			target = one_hot(Y_train[i])
-			# print target
-			#.shape,np.atleast_2d(target).T.shape
 			error.append(np.sum(abs(np.atleast_2d(target).T - out_softmax)))
-			print out_softmax
-			# print error
-			plt.plot(error)
-			plt.pause(0.01)
+			# print out_softmax
 
 			grad_softmax = softmax.backward(target)
-			# print grad_softmax.shape
 			grad_full = full.backward(grad_softmax)
-			# print grad_full.shape
 			grad_full = grad_full.reshape(4,4,10)
-			# print grad_full.shape
 			grad_pool3 = pool3.backward(grad_full)
-			# # print grad_pool3.shape
 			grad_relu3 = relu3.backward(grad_pool3)
-			# # print grad_relu3.shape
 			grad_conv3 = conv3.backward(grad_relu3)
-			# # print grad_conv3.shape
 			grad_pool2 = pool2.backward(grad_conv3)
-			# # print grad_pool2.shape
 			grad_relu2 = relu2.backward(grad_pool2)
-			# # print grad_relu2.shape
 			grad_conv2 = conv2.backward(grad_relu2)
-			# print grad_conv2.shape
 			grad_pool1 = pool1.backward(grad_conv2)
-			# print grad_pool1.shape
 			grad_relu1 = relu1.backward(grad_pool1)
-			# print grad_relu1.shape
 			grad_conv1 = conv1.backward(grad_relu1)
-			# print grad_conv1.shape
 
 			conv1.update(learning_rate,momentum)
 			conv2.update(learning_rate,momentum)
@@ -113,9 +93,12 @@ def train(**kwargs):
 				dump_parameters(conv1, conv2, conv3, full, softmax, iters, i)		
 			# print np.atleast_2d(target).T - out_softmax
 		dump_parameters(conv1, conv2, conv3, full, softmax, iters, i)
+		
+		val.append(sum(error)/len(error))
+		plt.plot(val)
+		plt.pause(0.01)
 		iters+=1
 
 
 if __name__ == '__main__':
-	# model = init_model()
-	train(epoch = 20,learning_rate = 0.005,momentum = 0.9,weight_decay = 0.001,batch=5)
+	train(epoch = 20,learning_rate = 0.001,momentum = 0.9,weight_decay = 0.001,batch=5)
