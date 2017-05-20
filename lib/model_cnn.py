@@ -69,6 +69,7 @@ class Conv():
 		self.filters = []
 		self.fanin = fanin
 		self.bias = 0.01 * np.random.randn(1)
+		self.v = 0
 		for i in range(self.N):
 			fil = np.random.randn(self.F,self.F,self.depth)/np.sqrt(self.fanin/2.0)
 			self.filters.append(fil)
@@ -155,11 +156,15 @@ class Conv():
 
 	def update(self,learning_rate,momentum):
 		# print 'update', len(self.error_derivatives_w), len(self.filters)
+		
 		for i in range(self.N):
 			# print 'w', self.error_derivatives_w[i][:,:,0]
 			# thaff = raw_input()
-			self.filters[i] -= learning_rate * self.error_derivatives_w[i]
+			self.v = momentum * self.v - learning_rate * self.error_derivatives_w[i]
+			self.filters[i] += self.v
 		self.bias -= learning_rate * self.error_derivatives_bias
+
+		return
 
 class ReLU():
 
@@ -245,6 +250,7 @@ class FC(object):
 		self.fanin = fanin
 		self.weights = np.random.randn(self.fanin,self.H)/np.sqrt(self.fanin)
 		self.bias = 0.01 * np.random.randn(1)
+		self.v = 0
 		return
 
 	def forward(self,activations_below):
@@ -262,7 +268,8 @@ class FC(object):
 		return error_derivatives_y
 
 	def update(self,learning_rate,momentum):
-		self.weights -= learning_rate * self.error_derivatives_w
+		self.v = momentum * self.v - learning_rate * self.error_derivatives_w
+		self.weights += self.v
 		# self.bias -= learning_rate * self.error_derivatives_bias
 		return
 
@@ -273,6 +280,7 @@ class Softmax(object):
 		self.fanin = fanin
 		self.weights = np.random.randn(self.fanin,self.H)/np.sqrt(self.fanin)
 		# self.bias = 0.01 * np.random.randn(1)
+		self.v = 0
 		return
 
 	def forward(self,activations_below,weight_decay):
@@ -299,9 +307,10 @@ class Softmax(object):
 		return delta_FC
 
 	def update(self,learning_rate,momentum):
-		self.weights -= learning_rate * self.error_derivatives_w
+		self.v = momentum * self.v - learning_rate * self.error_derivatives_w
+		self.weights += self.v
 		# print 'change', learning_rate * self.error_derivatives_w
-		return	
+		return
 
 
 if __name__ == '__main__':
