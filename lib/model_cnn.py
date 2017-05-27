@@ -46,7 +46,7 @@ class Conv():
 	"""
 
 
-	def __init__(self,stride=1,pad=1,F=3,depth=3,N=6,fanin=1):
+	def __init__(self,stride=1,pad=1,F=3,depth=3,N=6,fanin=1, filter_param = None, bias = None):
 		self.stride = stride
 		self.pad = pad
 		self.F = F
@@ -54,12 +54,15 @@ class Conv():
 		self.N = N
 		self.filters = []
 		self.fanin = fanin
-		self.bias = 0.01 * np.random.randn(1)
 		self.v = 0
-		for i in range(self.N):
-			fil = np.random.randn(self.F,self.F,self.depth)/np.sqrt(self.fanin/2.0)
-			self.filters.append(fil)
-		
+		if filter_param == None:
+			self.bias = 0.01 * np.random.randn(1)
+			for i in range(self.N):
+				fil = np.random.randn(self.F,self.F,self.depth)/np.sqrt(self.fanin/2.0)
+				self.filters.append(fil)
+		else:
+			self.filters = filter_param
+			self.bias = bias
 		# print len(self.filters)
 	def forward(self,activations_below):
 
@@ -114,15 +117,19 @@ class Conv():
 
 	def update(self,learning_rate,momentum):
 		# print 'update', len(self.error_derivatives_w), len(self.filters)
-		
+		# update_filters = np.array(self.filters)
+		# error = np.array(self.error_derivatives_w)
+		# var_ = learning_rate * self.error_derivatives_w[0]
+		# for j in range(self.depth):
+		# 	print var_[:,:,j]
 		for i in range(self.N):
 			# print 'w', self.error_derivatives_w[i][:,:,0]
 			# thaff = raw_input()
-			self.v = momentum * self.v - learning_rate * self.error_derivatives_w[i]
-			self.filters[i] += self.v
-
-		for i in range(self.N):
+			# self.v = momentum * self.v - learning_rate * self.error_derivatives_w[i]
 			self.filters[i] -= learning_rate * self.error_derivatives_w[i]
+
+		# for i in range(self.N):
+		# 	self.filters[i] -= learning_rate * self.error_derivatives_w[i]
 		self.bias -= learning_rate * self.error_derivatives_bias
 
 		return
@@ -186,13 +193,16 @@ class Pool(object):
 		
 class FC(object):
 
-	def __init__(self,H,fanin):
+	def __init__(self,H,fanin, weights = None):
 	
 		self.H = H
 		self.fanin = fanin
-		self.weights = np.random.randn(self.fanin,self.H)/np.sqrt(self.fanin)
 		self.bias = 0.01 * np.random.randn(1)
 		self.v = 0
+		if weights == None:
+			self.weights = np.random.randn(self.fanin,self.H)/np.sqrt(self.fanin)
+		else:
+			self.weights = weights
 		return
 
 	def forward(self,activations_below):
@@ -217,17 +227,18 @@ class FC(object):
 
 class Softmax(object):
 
-	def __init__(self,H,fanin):
+	def __init__(self,H,fanin, weights):
 		self.H = H
 		self.fanin = fanin
-		self.weights = np.random.randn(self.fanin,self.H)/np.sqrt(self.fanin)
 		# self.bias = 0.01 * np.random.randn(1)
 		self.v = 0
+		if weights == None:
+			self.weights = np.random.randn(self.fanin,self.H)/np.sqrt(self.fanin)
+		else:
+			self.weights = weights
 		return
 
-	def forward(self,activations_below,weight_decay):
-
-		
+	def forward(self,activations_below, weight_decay = None):
 		self.out = softmax(np.matmul(self.weights.T,activations_below)) #+ weight_decay * np.atleast_2d(np.sum(self.weights,axis=1)).T
 		self.activations_FC = activations_below
 		return self.out	

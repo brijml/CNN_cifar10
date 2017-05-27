@@ -1,4 +1,4 @@
 cifar-10-batches-py/*
 *.pyc
-*.pickle
 *.pkl
+*.zip

@@ -7,53 +7,76 @@ import cPickle
 file_path = os.path.dirname(os.path.realpath(__file__))
 data_dir = os.path.join(file_path,'cifar-10-batches-py')
 X_train,Y_train,X_test,Y_test = load_CIFAR10(data_dir)
+del X_test; del Y_test
 image = X_train[0]
 m,n,p = image.shape
 nc = 10 #number of classes
-# X_train = X_train[45:46] #Overfit on 50 training examples to validate the implementation
+offset = 0
+X_train = X_train[offset:] #Overfit on 50 training examples to validate the implementation
+Y_train = Y_train[offset:]
 
 def one_hot(index):
 	probability = np.zeros(nc)
 	probability[index] = 1
 	return probability
 
-def dump_parameters(conv1, conv2, conv3, full, softmax, iters, i):
+def dump_parameters(conv1,  conv2,  conv3,  full, softmax, iters, i, param):
 
-	save_path = os.path.join(file_path, 'network_parameters')
 	dict_ = {"conv1":conv1.filters, "conv2":conv2.filters,
-	"conv3":conv3.filters, 	"fc":full.weights, "softmax":softmax.weights}
+	"conv3":conv3.filters, 	"fc":full.weights, "softmax":softmax.weights,
+	"bias1":conv1.bias , "bias2":conv2.bias,"bias3":conv3.bias}
 
-	filename = os.path.join(save_path, 'parameters_epoch_'+str(iters) + '_sample_' + str(i) + '.pickle')
+	if param == 1:
+		save_path1 = os.path.join(file_path, 'temp_parameters')
+		filename1 = os.path.join(save_path1, 'parameters_epoch_'+str(iters) + '_sample_' + str(i) + '.pickle')
+		with open(filename1, 'wb"') as output_file:
+			cPickle.dump(dict_, output_file)
+		print 'parameters saved for : ', filename1
 
-	with open(filename, 'wb"') as output_file:
-		cPickle.dump(dict_, output_file)
-	print 'parameters saved for : ', filename
+	if param == 2:	
+		save_path2 = os.path.join(file_path, 'network_parameters')
+		filename2 = os.path.join(save_path2, 'network_parameters_' + str(iters) + '.pickle')
+		with open(filename2, 'wb"') as output_file:
+			cPickle.dump(dict_, output_file)
+		print 'parameters saved for : ', filename2
+
 
 def train(**kwargs):
 
-	learning_rate,momentum,batch,epoch,wd = kwargs['learning_rate'],kwargs['momentum'],kwargs['batch'],\
-											kwargs['epoch'],kwargs['weight_decay']
+	learning_rate,momentum,batch,epoch,wd, initialise = kwargs['learning_rate'],kwargs['momentum'],kwargs['batch'],\
+											kwargs['epoch'],kwargs['weight_decay'], kwargs['initialise']
 
 	number_samples = X_train.shape[0]
 	number_samples_batch = number_samples/batch
 
-	conv1 = Conv(F=5,stride=1,pad=2,depth=3,N=6,fanin=m*n*6)
+	parameters_ = {"conv1":None, "conv2":None, 	"conv3":None, 	"fc":None, "softmax":None, 	"bias1":None , "bias2":None,"bias3":None }
+
+	if initialise==0:
+		print "\n\n*******Reading from pickle file***********\n\n"
+		read_path = os.path.join(file_path, 'network_parameters')
+		read_path = os.path.join(read_path, 'network_parameters_2.pickle')
+		with open(read_path, "rb") as input_file:
+			parameters_ = cPickle.load(input_file)
+
+
+	conv1 = Conv(F=5,stride=1,pad=2,depth=3,N=6,fanin=m*n*6, filter_param = parameters_['conv1'], bias = parameters_['bias1'])
 	relu1 = ReLU()
 	pool1 = Pool(stride=2,F=2)
-	conv2 = Conv(F=5,stride=1,pad=2,depth=6,N=10,fanin=m*n*10)
+	conv2 = Conv(F=5,stride=1,pad=2,depth=6,N=6,fanin=m*n*6, filter_param = parameters_['conv2'], bias = parameters_['bias2'])
 	relu2 = ReLU()
 	pool2 = Pool(stride=2,F=2)
-	conv3 = Conv(F=5,stride=1,pad=2,depth=10,N=10,fanin=m*n*10)
+	conv3 = Conv(F=5,stride=1,pad=2,depth=6,N=8,fanin=m*n*8, filter_param = parameters_['conv3'], bias =  parameters_['bias3'])
 	relu3 = ReLU()
 	pool3 = Pool(stride=2,F=2)
-	full = FC(H =50,fanin = 160)
-	softmax = Softmax(H=10,fanin = 50)
+	full = FC(H =50,fanin = 128, weights = parameters_['fc'])
+	softmax = Softmax(H=10,fanin = 50, weights = parameters_['softmax'])
 	plt.ion()
 	iters = 0
 	val = []
-	while iters < epoch:
+	for iters in range(3, epoch,1):
 		error = []
 		for i,image in enumerate(X_train):
+			print "epoch number training sample",iters,i + offset
 			out_conv1 = conv1.forward(image)
 			out_relu1 = relu1.rectify(out_conv1)
 			out_pool1 = pool1.max_pooling(out_relu1)
@@ -63,16 +86,19 @@ def train(**kwargs):
 			out_conv3 = conv3.forward(out_pool2)
 			out_relu3 = relu3.rectify(out_conv3)
 			out_pool3 = pool3.max_pooling(out_relu3)
-			out_pool3 = out_pool3.reshape(160,1)
+			out_pool3 = out_pool3.reshape(128,1)
 			out_full = full.forward(out_pool3)
 			out_softmax = softmax.forward(out_full,wd)
+
+
 			target = one_hot(Y_train[i])
 			error.append(np.sum(abs(np.atleast_2d(target).T - out_softmax)))
-			# print out_softmax
-
+			# print np.sum(abs(np.atleast_2d(target).T - out_softmax))
+			
+			
 			grad_softmax = softmax.backward(target)
 			grad_full = full.backward(grad_softmax)
-			grad_full = grad_full.reshape(4,4,10)
+			grad_full = grad_full.reshape(4,4,8)
 			grad_pool3 = pool3.backward(grad_full)
 			grad_relu3 = relu3.backward(grad_pool3)
 			grad_conv3 = conv3.backward(grad_relu3)
@@ -90,15 +116,20 @@ def train(**kwargs):
 			softmax.update(learning_rate,momentum)
 
 			if i%500 == 0:
-				dump_parameters(conv1, conv2, conv3, full, softmax, iters, i)		
-			# print np.atleast_2d(target).T - out_softmax
-		dump_parameters(conv1, conv2, conv3, full, softmax, iters, i)
-		
-		val.append(sum(error)/len(error))
-		plt.plot(val)
-		plt.pause(0.01)
-		iters+=1
+				print out_softma
+				dump_parameters(conv1, conv2, conv3, full, softmax, iters, i + offset, 1)
+				val.append(sum(error)/len(error))
+				# print sum(error)/len(error)
+				# print val
+				plt.plot(val)
+				plt.pause(0.01)
+				error = []
+
+		# iters+=1
+		dump_parameters(conv1, conv2, conv3, full, softmax, iters, i + offset, 2)		
 
 
 if __name__ == '__main__':
-	train(epoch = 20,learning_rate = 0.001,momentum = 0.9,weight_decay = 0.001,batch=5)
+	initialise = 0
+
+	train(epoch = 4,learning_rate = 0.000005,momentum = 0.9,weight_decay = 0.001,batch=5, initialise = initialise)
