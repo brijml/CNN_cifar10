@@ -57,12 +57,13 @@ class Conv():
 		self.v = np.zeros((self.N,self.F,self.F,self.depth))
 		if filter_param == None:
 			self.bias = 0.01 * np.random.randn(1)
-			for i in range(self.N):
-				fil = np.random.randn(self.F,self.F,self.depth)/np.sqrt(self.fanin/2.0)
-				self.filters.append(fil)
+			self.filters = np.random.randn(N,F,F,depth)/np.sqrt(self.fanin/2.0)
 		else:
 			self.filters = filter_param
 			self.bias = bias
+
+		self.error_derivatives_w = np.zeros_like(self.filters)
+		self.error_derivatives_bias = np.zeros_like(self.bias)
 
 	def forward(self,activations_below):
 
@@ -82,6 +83,7 @@ class Conv():
 		out = np.zeros((self.m,self.n,self.N))
 		for i in range(self.N):
 			out[:,:,i] = convolve(activations_below,self.filters[i],self.pad) + self.bias
+
 		return out
 
 	def backward(self,error_derivatives_above):
@@ -91,7 +93,6 @@ class Conv():
 		"""
 		error_derivatives_above =  rot180(error_derivatives_above)
 		self.input_to_conv = rot180(self.input_to_conv)
-		self.error_derivatives_w = []
 		error_derivatives_y = np.zeros((self.m,self.n,self.depth))
 		for i in range(self.depth):
 			for j in range(self.N):
@@ -109,20 +110,20 @@ class Conv():
 					
 								one_filter_derivative[u,v,d] += t[x+u,y+v,d]*error_derivatives_above[x,y,result_depth]						
 
-			self.error_derivatives_w.append(one_filter_derivative)
-			self.error_derivatives_bias = np.mean(error_derivatives_above)
+			self.error_derivatives_w[result_depth] += one_filter_derivative
+			self.error_derivatives_bias += np.mean(error_derivatives_above)
 
 		return error_derivatives_y
 
 
 	def update(self,learning_rate,momentum):
 
-		for i in range(self.N):
 
-			self.v[i] = momentum * self.v[i] - learning_rate * self.error_derivatives_w[i]
-			self.filters[i] += self.v[i]
-		
+		self.v = momentum * self.v - learning_rate * self.error_derivatives_w
+		self.filters += self.v
 		self.bias -= learning_rate * self.error_derivatives_bias
+		self.error_derivatives_w = np.zeros_like(self.filters)
+		self.error_derivatives_bias = np.zeros_like(self.bias)
 
 		return
 
@@ -196,6 +197,10 @@ class FC(object):
 		else:
 			self.weights = weights
 			self.bias = bias
+
+		self.error_derivatives_w = np.zeros_like(self.weights)
+		self.error_derivatives_bias = np.zeros_like(self.bias)
+
 		return
 
 	def forward(self,activations_below):
@@ -207,14 +212,17 @@ class FC(object):
 	def backward(self,error_derivatives_above):
 	
 		error_derivatives_y = np.matmul(self.weights,error_derivatives_above)
-		self.error_derivatives_w = np.matmul(self.activations_MP,error_derivatives_above.T)
-		self.error_derivatives_bias = error_derivatives_above
+		self.error_derivatives_w += np.matmul(self.activations_MP,error_derivatives_above.T)
+		self.error_derivatives_bias += error_derivatives_above
 		return error_derivatives_y
 
 	def update(self,learning_rate,momentum):
 		self.v = momentum * self.v - learning_rate * self.error_derivatives_w
 		self.weights += self.v
 		self.bias -= learning_rate * self.error_derivatives_bias
+		self.error_derivatives_w = np.zeros_like(self.weights)
+		self.error_derivatives_bias = np.zeros_like(self.bias)
+
 		return
 
 class Softmax(object):
@@ -229,6 +237,9 @@ class Softmax(object):
 		else:
 			self.weights = weights
 			self.bias = bias
+		self.error_derivatives_w = np.zeros_like(self.weights)
+		self.error_derivatives_bias = np.zeros_like(self.bias)
+
 		return
 
 	def forward(self,activations_below, weight_decay = None):
@@ -240,8 +251,8 @@ class Softmax(object):
 	def backward(self,target):
 
 		error_derivatives_ISM = self.out - np.atleast_2d(target).T
-		self.error_derivatives_w = np.matmul(self.activations_FC,error_derivatives_ISM.T)
-		self.error_derivatives_bias = error_derivatives_ISM
+		self.error_derivatives_w += np.matmul(self.activations_FC,error_derivatives_ISM.T)
+		self.error_derivatives_bias += error_derivatives_ISM
 		delta_FC = np.matmul(self.weights,error_derivatives_ISM)
 
 		return delta_FC
@@ -251,6 +262,9 @@ class Softmax(object):
 		self.v = momentum * self.v - learning_rate * self.error_derivatives_w
 		self.weights += self.v
 		self.bias -= learning_rate*self.error_derivatives_bias
+		self.error_derivatives_w = np.zeros_like(self.weights)
+		self.error_derivatives_bias = np.zeros_like(self.bias)
+
 		return
 
 

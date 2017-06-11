@@ -54,7 +54,7 @@ def train(**kwargs):
 	if initialise==0:
 		print "\n\n*******Reading from pickle file***********\n\n"
 		read_path = os.path.join(file_path, 'network_parameters')
-		read_path = os.path.join(read_path, 'network_parameters_5.pickle')
+		read_path = os.path.join(read_path, 'network_parameters_0.pickle')
 		with open(read_path, "rb") as input_file:
 			parameters_ = cPickle.load(input_file)
 
@@ -74,38 +74,39 @@ def train(**kwargs):
 	val = []
 	for iters in range(2, epoch,1):
 		error,loss = [],[]
-		for i,image in enumerate(X_train):
-			out_conv1 = conv1.forward(image)
-			out_relu1 = relu1.rectify(out_conv1)
-			out_pool1 = pool1.max_pooling(out_relu1)
-			out_conv2 = conv2.forward(out_pool1)
-			out_relu2 = relu2.rectify(out_conv2)
-			out_pool2 = pool2.max_pooling(out_relu2)
-			out_conv3 = conv3.forward(out_pool2)
-			out_relu3 = relu3.rectify(out_conv3)
-			out_pool3 = pool3.max_pooling(out_relu3)
-			out_pool3 = out_pool3.reshape(128,1)
-			out_full = full.forward(out_pool3)
-			out_softmax = softmax.forward(out_full,wd)
+		for i in range(0,number_samples_batch,batch):
+			for j,image in enumerate(X_train[0:0+batch]):
+				out_conv1 = conv1.forward(image)
+				out_relu1 = relu1.rectify(out_conv1)
+				out_pool1 = pool1.max_pooling(out_relu1)
+				out_conv2 = conv2.forward(out_pool1)
+				out_relu2 = relu2.rectify(out_conv2)
+				out_pool2 = pool2.max_pooling(out_relu2)
+				out_conv3 = conv3.forward(out_pool2)
+				out_relu3 = relu3.rectify(out_conv3)
+				out_pool3 = pool3.max_pooling(out_relu3)
+				out_pool3 = out_pool3.reshape(128,1)
+				out_full = full.forward(out_pool3)
+				out_softmax = softmax.forward(out_full,wd)
+				# print out_softmax,Y_train[j]
 
+				target = one_hot(Y_train[j])
 
-			target = one_hot(Y_train[i])
-
-			#Negative log likelihood
-			loss.append(-np.log(out_softmax[Y_train[i]]))
-			
-			grad_softmax = softmax.backward(target)
-			grad_full = full.backward(grad_softmax)
-			grad_full = grad_full.reshape(4,4,8)
-			grad_pool3 = pool3.backward(grad_full)
-			grad_relu3 = relu3.backward(grad_pool3)
-			grad_conv3 = conv3.backward(grad_relu3)
-			grad_pool2 = pool2.backward(grad_conv3)
-			grad_relu2 = relu2.backward(grad_pool2)
-			grad_conv2 = conv2.backward(grad_relu2)
-			grad_pool1 = pool1.backward(grad_conv2)
-			grad_relu1 = relu1.backward(grad_pool1)
-			grad_conv1 = conv1.backward(grad_relu1)
+				#Negative log likelihood
+				loss.append(-np.log(out_softmax[Y_train[j]]))
+				# loss.append(np.sum(abs(out_softmax - np.atleast_2d(target).T)))
+				grad_softmax = softmax.backward(target)
+				grad_full = full.backward(grad_softmax)
+				grad_full = grad_full.reshape(16,16,6)
+				grad_pool3 = pool3.backward(grad_full)
+				grad_relu3 = relu3.backward(grad_pool3)
+				grad_conv3 = conv3.backward(grad_relu3)
+				grad_pool2 = pool2.backward(grad_conv3)
+				grad_relu2 = relu2.backward(grad_pool2)
+				grad_conv2 = conv2.backward(grad_relu2)
+				grad_pool1 = pool1.backward(grad_conv2)
+				grad_relu1 = relu1.backward(grad_pool1)
+				grad_conv1 = conv1.backward(grad_relu1)
 
 			conv1.update(learning_rate,momentum)
 			conv2.update(learning_rate,momentum)
@@ -116,16 +117,17 @@ def train(**kwargs):
 			#Plot the cumulative loss for the 500 training samples and save the parameters
 			if i%500 == 0:
 				dump_parameters(conv1, conv2, conv3, full, softmax, iters, i + offset, 1)
-				val.append(sum(loss)/len(loss))
-				plt.plot(val)
-				plt.pause(0.01)
-				error = []
+
+			val.append(sum(loss)/len(loss))
+			plt.plot(val)
+			plt.pause(0.01)
+			error = []
 
 		#Save the parameters after every iteration through training data
 		dump_parameters(conv1, conv2, conv3, full, softmax, iters, i + offset, 2)		
 
 
 if __name__ == '__main__':
-	initialise = 0
+	initialise = 1
 
-	train(epoch = 6,learning_rate = 1e-5,momentum = 0.9,weight_decay = 0.001,batch=5, initialise = initialise)
+	train(epoch = 6,learning_rate = 1e-5,momentum = 0.9,weight_decay = 0.001,batch=50, initialise = initialise)
