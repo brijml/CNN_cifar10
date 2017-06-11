@@ -54,7 +54,7 @@ class Conv():
 		self.N = N
 		self.filters = []
 		self.fanin = fanin
-		self.v = 0
+		self.v = np.zeros((self.N,self.F,self.F,self.depth))
 		if filter_param == None:
 			self.bias = 0.01 * np.random.randn(1)
 			for i in range(self.N):
@@ -63,7 +63,7 @@ class Conv():
 		else:
 			self.filters = filter_param
 			self.bias = bias
-		# print len(self.filters)
+
 	def forward(self,activations_below):
 
 		"""
@@ -116,20 +116,12 @@ class Conv():
 
 
 	def update(self,learning_rate,momentum):
-		# print 'update', len(self.error_derivatives_w), len(self.filters)
-		# update_filters = np.array(self.filters)
-		# error = np.array(self.error_derivatives_w)
-		# var_ = learning_rate * self.error_derivatives_w[0]
-		# for j in range(self.depth):
-		# 	print var_[:,:,j]
-		for i in range(self.N):
-			# print 'w', self.error_derivatives_w[i][:,:,0]
-			# thaff = raw_input()
-			# self.v = momentum * self.v - learning_rate * self.error_derivatives_w[i]
-			self.filters[i] -= learning_rate * self.error_derivatives_w[i]
 
-		# for i in range(self.N):
-		# 	self.filters[i] -= learning_rate * self.error_derivatives_w[i]
+		for i in range(self.N):
+
+			self.v[i] = momentum * self.v[i] - learning_rate * self.error_derivatives_w[i]
+			self.filters[i] += self.v[i]
+		
 		self.bias -= learning_rate * self.error_derivatives_bias
 
 		return
@@ -193,53 +185,55 @@ class Pool(object):
 		
 class FC(object):
 
-	def __init__(self,H,fanin, weights = None):
+	def __init__(self,H,fanin, weights = None,bias = None):
 	
 		self.H = H
 		self.fanin = fanin
-		self.bias = 0.01 * np.random.randn(1)
 		self.v = 0
 		if weights == None:
 			self.weights = np.random.randn(self.fanin,self.H)/np.sqrt(self.fanin)
+			self.bias = 0.01 * np.random.randn(H,1)
 		else:
 			self.weights = weights
+			self.bias = bias
 		return
 
 	def forward(self,activations_below):
 	
 		out = np.matmul(self.weights.T,activations_below)# + self.bias
-		self.local_grad = self.weights
 		self.activations_MP = activations_below
 		return out
 
 	def backward(self,error_derivatives_above):
 	
-		error_derivatives_y = np.matmul(self.local_grad,error_derivatives_above)
+		error_derivatives_y = np.matmul(self.weights,error_derivatives_above)
 		self.error_derivatives_w = np.matmul(self.activations_MP,error_derivatives_above.T)
-	
+		self.error_derivatives_bias = error_derivatives_above
 		return error_derivatives_y
 
 	def update(self,learning_rate,momentum):
 		self.v = momentum * self.v - learning_rate * self.error_derivatives_w
 		self.weights += self.v
-		# self.bias -= learning_rate * self.error_derivatives_bias
+		self.bias -= learning_rate * self.error_derivatives_bias
 		return
 
 class Softmax(object):
 
-	def __init__(self,H,fanin, weights):
+	def __init__(self,H,fanin, weights, bias):
 		self.H = H
 		self.fanin = fanin
-		# self.bias = 0.01 * np.random.randn(1)
 		self.v = 0
 		if weights == None:
 			self.weights = np.random.randn(self.fanin,self.H)/np.sqrt(self.fanin)
+			self.bias = 0.01 * np.random.randn(H,1)
 		else:
 			self.weights = weights
+			self.bias = bias
 		return
 
 	def forward(self,activations_below, weight_decay = None):
-		self.out = softmax(np.matmul(self.weights.T,activations_below)) #+ weight_decay * np.atleast_2d(np.sum(self.weights,axis=1)).T
+
+		self.out = softmax(np.matmul(self.weights.T,activations_below) + self.bias) #+ weight_decay * np.atleast_2d(np.sum(self.weights,axis=1)).T
 		self.activations_FC = activations_below
 		return self.out	
 
@@ -247,6 +241,7 @@ class Softmax(object):
 
 		error_derivatives_ISM = self.out - np.atleast_2d(target).T
 		self.error_derivatives_w = np.matmul(self.activations_FC,error_derivatives_ISM.T)
+		self.error_derivatives_bias = error_derivatives_ISM
 		delta_FC = np.matmul(self.weights,error_derivatives_ISM)
 
 		return delta_FC
@@ -255,7 +250,7 @@ class Softmax(object):
 
 		self.v = momentum * self.v - learning_rate * self.error_derivatives_w
 		self.weights += self.v
-		# print 'change', learning_rate * self.error_derivatives_w
+		self.bias -= learning_rate*self.error_derivatives_bias
 		return
 
 
